@@ -6,7 +6,6 @@
 
 #include "driver/gpio.h"
 #include "esp_err.h"
-#include "esp_flash.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "sdkconfig.h"
