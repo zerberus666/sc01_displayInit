@@ -17,14 +17,17 @@
 #include "esp_lcd_touch.h"
 #include "esp_lcd_types.h"
 #include "esp_log.h"
+#include "esp_lvgl_port_touch.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/projdefs.h"
 #include "hal/i2c_types.h"
+#include "hal/lcd_types.h"
 #include "indev/lv_indev.h"
 #include "lv_init.h"
 #include <stdbool.h>
 #define LV_USE_INDEV 1
 #include "lvgl.h"
+#include "esp_lvgl_port.h"
 #include "misc/lv_color.h"
 #include "misc/lv_types.h"
 #include "soc/gpio_num.h"
@@ -42,9 +45,10 @@ static esp_lcd_panel_io_handle_t io_handle = NULL;
 static esp_lcd_panel_handle_t panel_handle = NULL;
 
 static esp_lcd_touch_handle_t tp;
+static lv_display_t *disp;
 static lv_indev_t *indev;
 
-static void my_flush_cb(lv_display_t *disp, const lv_area_t *area,
+/*static void my_flush_cb(lv_display_t *disp, const lv_area_t *area,
 						uint8_t *px_map) {
 	esp_lcd_panel_handle_t panel =
 		(esp_lcd_panel_handle_t)lv_display_get_user_data(disp);
@@ -67,7 +71,7 @@ static void my_flush_cb(lv_display_t *disp, const lv_area_t *area,
 
 	// Сообщаем LVGL, что отрисовка завершена
 	lv_display_flush_ready(disp);
-}
+}*/
 
 // static void touch_read_cb(lv_indev_ *drv, lv_indev_data_t *data) {
 //     uint16_t x, y;
@@ -149,7 +153,7 @@ static void createLCDIODevice() {
 			},
 		.lcd_cmd_bits = 8,
 		.lcd_param_bits = 8,
-		.flags.swap_color_bytes = true,
+		.flags.swap_color_bytes = false,
 		.flags.reverse_color_bits = false,
 	};
 	ESP_ERROR_CHECK(esp_lcd_new_panel_io_i80(i80_bus, &io_config, &io_handle));
@@ -174,6 +178,7 @@ static void installLCDControllerDriver() {
 }
 
 static void switchBacklightOn() {
+  ESP_LOGI(TAG, "4. Switch backlight ON");
 	// 4. Switch backlight ON
 	gpio_set_direction(GPIO_NUM_45, GPIO_MODE_OUTPUT); // backlight
 	gpio_set_level(GPIO_NUM_45, 1);
@@ -181,7 +186,7 @@ static void switchBacklightOn() {
 
 static void initLVGL() {
 	// 5. LVGL init
-	/*
+	ESP_LOGI(TAG, "5. starting LVGL init");
 	lvgl_port_cfg_t lvgl_cfg = ESP_LVGL_PORT_INIT_CONFIG();
 	ESP_ERROR_CHECK(lvgl_port_init(&lvgl_cfg));
 	const lvgl_port_display_cfg_t disp_cfg = {
@@ -200,16 +205,8 @@ static void initLVGL() {
 	  .flags.swap_bytes = true,
 	  .flags.sw_rotate = false,
 	};
-	lv_disp_t *disp = lvgl_port_add_disp(&disp_cfg);
-	*/
-
-	lv_init();
-	lv_display_t *disp = lv_display_create(LCD_H_RES, LCD_V_RES);
-	lv_display_set_flush_cb(disp, my_flush_cb);
-	lv_display_set_buffers(disp, buf1, buf2, sizeof(buf1),
-						   LV_DISPLAY_RENDER_MODE_PARTIAL);
-	lv_display_set_user_data(disp, panel_handle); // передаём дисплейный хэндл
-	lv_display_set_default(disp);
+	disp = lvgl_port_add_disp(&disp_cfg);
+	ESP_LOGI (TAG, "5. LGVL init complete");
 }
 
 void initTP() {
@@ -265,9 +262,17 @@ void initTP() {
 
 	// 4. Create touch-driver
 	esp_lcd_touch_new_i2c_ft5x06(io_handle_tp, &tp_cfg, &tp);
+	
+	const lvgl_port_touch_cfg_t touch_cfg = {
+    .disp = disp,
+    .handle = tp,
+  };
+  
+  indev = lvgl_port_add_touch(&touch_cfg);
 
 	//----------------------
 	// lv_input_device_t *touch_dev = lv_input_device_create();
+	/*
 	indev = lv_indev_create();
 	lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
 	lv_indev_set_read_cb(indev, my_input_read);
@@ -278,6 +283,7 @@ void initTP() {
 	ESP_LOGI(TAG, "indev = %p", indev);
 	assert(indev != NULL);
 	ESP_LOGI(TAG, "indev active = %p", lv_indev_active());
+	*/
 }
 
 void initDispaly() {
@@ -336,7 +342,7 @@ void lvgl_task(void *pvParameters) {
 	lv_obj_add_event_cb(btn_red, btn_red_event_cb, LV_EVENT_CLICKED, NULL);
 
 	vTaskDelay(pdMS_TO_TICKS(1000));
-	ESP_LOGI(TAG, "indev active = %p", lv_indev_active());
+	//ESP_LOGI(TAG, "indev active = %p", lv_indev_active());
 
 	while (true) {
 		// ESP_LOGI(TAG, "lv_timer_handler running");
