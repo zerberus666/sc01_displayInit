@@ -5,6 +5,8 @@
  *      Author: farid
  */
 #include "lvglTask.h"
+#include "settings.h"
+#include "GUI.h"
 #include "display/lv_display.h"
 #include "driver/gpio.h"
 #include "driver/i2c.h"
@@ -38,8 +40,6 @@
 
 #define TAG "LVGL_TASK"
 
-static lv_color_t buf1[LCD_H_RES * 40];
-static lv_color_t buf2[LCD_H_RES * 40];
 static esp_lcd_i80_bus_handle_t i80_bus = NULL;
 static esp_lcd_panel_io_handle_t io_handle = NULL;
 static esp_lcd_panel_handle_t panel_handle = NULL;
@@ -47,46 +47,6 @@ static esp_lcd_panel_handle_t panel_handle = NULL;
 static esp_lcd_touch_handle_t tp;
 static lv_display_t *disp;
 static lv_indev_t *indev;
-
-/*static void my_flush_cb(lv_display_t *disp, const lv_area_t *area,
-						uint8_t *px_map) {
-	esp_lcd_panel_handle_t panel =
-		(esp_lcd_panel_handle_t)lv_display_get_user_data(disp);
-
-	// Размер области
-	// int width = area->x2 - area->x1 + 1;
-	// int height = area->y2 - area->y1 + 1;
-	// size_t len = width * height * 2; // RGB565 = 2 байта на пиксель
-
-	//	// Перестановка байтов вручную
-	//	for (size_t i = 0; i < len; i += 2) {
-	//		uint8_t tmp = px_map[i];
-	//		px_map[i] = px_map[i + 1];
-	//		px_map[i + 1] = tmp;
-	//	}
-
-	// Отправка буфера в дисплей
-	esp_lcd_panel_draw_bitmap(panel, area->x1, area->y1, area->x2 + 1,
-							  area->y2 + 1, px_map);
-
-	// Сообщаем LVGL, что отрисовка завершена
-	lv_display_flush_ready(disp);
-}*/
-
-// static void touch_read_cb(lv_indev_ *drv, lv_indev_data_t *data) {
-//     uint16_t x, y;
-//     bool touched = false;
-//
-//     esp_lcd_touch_get_coordinates(tp, &x, &y, &touched);
-//
-//     if (touched) {
-//         data->point.x = x;
-//         data->point.y = y;
-//         data->state = LV_INDEV_STATE_PRESSED;
-//     } else {
-//         data->state = LV_INDEV_STATE_RELEASED;
-//     }
-// }
 void my_input_read(lv_indev_t *indev, lv_indev_data_t *data) {
 	ESP_LOGI(TAG, "my_input_read called");
 	esp_lcd_touch_handle_t tp = lv_indev_get_user_data(indev);
@@ -106,15 +66,7 @@ void my_input_read(lv_indev_t *indev, lv_indev_data_t *data) {
 	ESP_LOGI(TAG, "Touch: x=%d y=%d\n", x, y);
 }
 
-static void btn_red_event_cb(lv_event_t *e) {
-	lv_event_code_t code = lv_event_get_code(e);
-	lv_obj_t *btn = lv_event_get_target(e);
 
-	if (code == LV_EVENT_CLICKED) {
-		ESP_LOGI(TAG, "RED button pressed");
-		// Можно добавить действия: смена экрана, изменение цвета и т.д.
-	}
-}
 
 static void create_i80_bus() {
 	// 1. Create I80 bus
@@ -131,7 +83,6 @@ static void create_i80_bus() {
 		//.dma_burst_size = 256, // 128 64
 	};
 	ESP_ERROR_CHECK(esp_lcd_new_i80_bus(&bus_config, &i80_bus));
-	// vTaskDelay(pdMS_TO_TICKS(1000));
 }
 
 static void createLCDIODevice() {
@@ -269,21 +220,6 @@ void initTP() {
   };
   
   indev = lvgl_port_add_touch(&touch_cfg);
-
-	//----------------------
-	// lv_input_device_t *touch_dev = lv_input_device_create();
-	/*
-	indev = lv_indev_create();
-	lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
-	lv_indev_set_read_cb(indev, my_input_read);
-	lv_indev_set_user_data(indev, &tp);
-	lv_indev_set_display(indev, lv_display_get_default());
-	lv_indev_enable(indev, true);
-
-	ESP_LOGI(TAG, "indev = %p", indev);
-	assert(indev != NULL);
-	ESP_LOGI(TAG, "indev active = %p", lv_indev_active());
-	*/
 }
 
 void initDispaly() {
@@ -297,7 +233,10 @@ void initDispaly() {
 
 void lvgl_task(void *pvParameters) {
 	initDispaly();
-
+	
+	//mainScreen();
+	GUI();
+/*
 	// 6. Create interface
 	lv_obj_t *label = lv_label_create(lv_scr_act());
 	lv_label_set_text(label, "Hello World");
@@ -340,7 +279,7 @@ void lvgl_task(void *pvParameters) {
 
 	lv_scr_load(lv_scr_act());
 	lv_obj_add_event_cb(btn_red, btn_red_event_cb, LV_EVENT_CLICKED, NULL);
-
+*/
 	vTaskDelay(pdMS_TO_TICKS(1000));
 	//ESP_LOGI(TAG, "indev active = %p", lv_indev_active());
 
@@ -348,6 +287,6 @@ void lvgl_task(void *pvParameters) {
 		// ESP_LOGI(TAG, "lv_timer_handler running");
 
 		lv_timer_handler();
-		vTaskDelay(pdMS_TO_TICKS(10));
+		vTaskDelay(pdMS_TO_TICKS(50));
 	}
 }
